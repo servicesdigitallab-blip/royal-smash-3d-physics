@@ -1,4 +1,5 @@
-// Royal Smash 3D - Main Game Engine (Polished Cannon Framing & Smooth Aiming)
+// Royal Smash 3D - Main Game Engine (Exact Play Store Replica)
+// Faithfully implements camera framing, fairytale castle background, paint splatters, and turntable cannon
 
 class GameEngine {
     constructor() {
@@ -7,11 +8,11 @@ class GameEngine {
         this.renderer = null;
         this.cannon = null;
 
-        // Clean Camera Framing: Cannon centered at bottom, looking up at target castle
-        this.camBasePos = new THREE.Vector3(0, 5.2, 16.5);
+        // Exact Arcade Viewport matching screen_0.jpg
+        this.camBasePos = new THREE.Vector3(0, 4.5, 15.2);
         this.shakeIntensity = 0;
 
-        // Economy & Inventory
+        // Economy
         this.coins = parseInt(localStorage.getItem('royal_smash_coins') || '150', 10);
         this.equippedCannon = localStorage.getItem('royal_smash_cannon') || 'standard';
         this.unlockedCannons = JSON.parse(localStorage.getItem('royal_smash_unlocked') || '["standard"]');
@@ -20,7 +21,7 @@ class GameEngine {
 
         // Level State
         this.currentLevel = 1;
-        this.maxLevel = 6;
+        this.maxLevel = 4;
         this.ammo = 4;
         this.totalAmmo = 4;
         this.score = 0;
@@ -41,12 +42,12 @@ class GameEngine {
 
         // 1. Scene & Camera
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x38bdf8); // Vibrant Royal Sky Cyan
-        this.scene.fog = new THREE.FogExp2(0x38bdf8, 0.009);
+        this.scene.background = new THREE.Color(0x38bdf8); // Sky Cyan (screen_0.jpg)
+        this.scene.fog = new THREE.FogExp2(0x38bdf8, 0.007);
 
-        this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 150);
+        this.camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 150);
         this.camera.position.copy(this.camBasePos);
-        this.camera.lookAt(0, 2.2, 0);
+        this.camera.lookAt(0, 5.8, 0);
 
         // 2. High-Performance WebGL Renderer
         this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -58,18 +59,20 @@ class GameEngine {
 
         // 3. Bright Royal Lighting
         this.setupLights();
+
+        // 4. Fairytale Castle Background (screen_0.jpg)
         this.setupEnvironment();
 
-        // 4. Cannon Controller
+        // 5. Play Store Turntable Cannon
         this.cannon = new CannonController(this.scene);
 
-        // 5. Controls
+        // 6. Smooth Aiming Controls
         this.bindEvents();
 
-        // 6. Start Level 1
+        // 7. Load Level 1 (Can Pyramid)
         this.loadLevel(this.currentLevel);
 
-        // 7. Loop
+        // 8. Animation Loop
         this.lastTime = performance.now();
         this.animate = this.animate.bind(this);
         requestAnimationFrame(this.animate);
@@ -78,9 +81,9 @@ class GameEngine {
     }
 
     setupLights() {
-        // High-Vibrancy Crisp Sunlight
+        // Crisp Sun Light
         const sunLight = new THREE.DirectionalLight(0xfffaed, 1.6);
-        sunLight.position.set(15, 30, 18);
+        sunLight.position.set(12, 32, 18);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 2048;
         sunLight.shadow.mapSize.height = 2048;
@@ -88,59 +91,106 @@ class GameEngine {
         sunLight.shadow.camera.far = 70;
         sunLight.shadow.camera.left = -16;
         sunLight.shadow.camera.right = 16;
-        sunLight.shadow.camera.top = 20;
-        sunLight.shadow.camera.bottom = -10;
+        sunLight.shadow.camera.top = 22;
+        sunLight.shadow.camera.bottom = -8;
         sunLight.shadow.bias = -0.0003;
         this.scene.add(sunLight);
 
-        // Ambient Fills for bright saturated colors
+        // Ambient Fill
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x0284c7, 0.95);
         this.scene.add(hemiLight);
 
-        const ambLight = new THREE.AmbientLight(0xffffff, 0.5);
+        const ambLight = new THREE.AmbientLight(0xffffff, 0.55);
         this.scene.add(ambLight);
     }
 
     setupEnvironment() {
-        // Courtyard Green Grass Lawn
-        const groundGeo = new THREE.PlaneGeometry(130, 130);
-        const groundMat = new THREE.MeshPhongMaterial({ color: 0x22c55e, specular: 0x86efac, shininess: 20 });
+        // Bright Green Rolling Lawn
+        const groundGeo = new THREE.PlaneGeometry(140, 140);
+        const groundMat = new THREE.MeshPhongMaterial({ color: 0x4ade80, specular: 0x86efac, shininess: 20 });
         const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -0.55;
+        ground.position.y = 0.0;
         ground.receiveShadow = true;
         this.scene.add(ground);
 
-        // Castle Wall
-        const wallMat = new THREE.MeshPhongMaterial({ color: 0x64748b, specular: 0x94a3b8, shininess: 30 });
-        const wall = new THREE.Mesh(new THREE.BoxGeometry(46, 10, 3), wallMat);
-        wall.position.set(0, 4.5, -16);
-        wall.receiveShadow = true;
-        wall.castShadow = true;
-        this.scene.add(wall);
+        // Dirt Circular Mound under the pedestal (screen_0.jpg)
+        const dirtGeo = new THREE.CircleGeometry(3.2, 32);
+        const dirtMat = new THREE.MeshPhongMaterial({ color: 0xca8a04, roughness: 0.9 });
+        const dirt = new THREE.Mesh(dirtGeo, dirtMat);
+        dirt.rotation.x = -Math.PI / 2;
+        dirt.position.set(0, 0.02, 0);
+        dirt.receiveShadow = true;
+        this.scene.add(dirt);
 
-        // Battlements
-        for (let i = -22; i <= 22; i += 3.5) {
-            const crenel = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.7, 3.2), wallMat);
-            crenel.position.set(i, 10.2, -16);
-            crenel.castShadow = true;
-            this.scene.add(crenel);
-        }
+        // Winding Pathway towards castle
+        const pathGeo = new THREE.PlaneGeometry(3.6, 26);
+        const pathMat = new THREE.MeshPhongMaterial({ color: 0xfef08a, roughness: 0.9 });
+        const path = new THREE.Mesh(pathGeo, pathMat);
+        path.rotation.x = -Math.PI / 2;
+        path.position.set(0, 0.03, -15);
+        this.scene.add(path);
 
-        // Royal Banners
-        const flagColors = [0xef4444, 0x3b82f6, 0xfacc15];
-        [-15, -7, 1, 9, 17].forEach((fx, idx) => {
-            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 4.5, 8), new THREE.MeshPhongMaterial({ color: 0x334155 }));
-            pole.position.set(fx, 12, -16);
-            this.scene.add(pole);
+        // Fairytale Disney Castle in Background (screen_0.jpg)
+        this.buildFairytaleCastle();
+    }
 
-            const banner = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.0), new THREE.MeshBasicMaterial({
-                color: flagColors[idx % flagColors.length],
-                side: THREE.DoubleSide
-            }));
-            banner.position.set(fx + 0.8, 13.5, -16);
-            this.scene.add(banner);
+    buildFairytaleCastle() {
+        const castleGroup = new THREE.Group();
+        castleGroup.position.set(0, 0, -28);
+
+        const stoneMat = new THREE.MeshPhongMaterial({ color: 0xf1f5f9, specular: 0xffffff, shininess: 40 });
+        const purpleRoofMat = new THREE.MeshPhongMaterial({ color: 0x8b2fc9, specular: 0xd8b4fe, shininess: 80 });
+        const goldMat = new THREE.MeshPhongMaterial({ color: 0xfacc15, specular: 0xfef08a, shininess: 120 });
+
+        // Main Center Keep
+        const mainKeep = new THREE.Mesh(new THREE.BoxGeometry(8, 9, 5), stoneMat);
+        mainKeep.position.y = 4.5;
+        mainKeep.castShadow = true;
+        castleGroup.add(mainKeep);
+
+        // Center High Spire Tower
+        const centerTower = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.8, 11, 20), stoneMat);
+        centerTower.position.set(0, 5.5, 0);
+        castleGroup.add(centerTower);
+
+        // Center Purple Roof Cone
+        const centerRoof = new THREE.Mesh(new THREE.ConeGeometry(2.2, 5, 20), purpleRoofMat);
+        centerRoof.position.set(0, 13.5, 0);
+        castleGroup.add(centerRoof);
+
+        // Gold Spire Ball on top
+        const goldSpire = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 12), goldMat);
+        goldSpire.position.set(0, 16.2, 0);
+        castleGroup.add(goldSpire);
+
+        // Left & Right Spires
+        [-5.5, 5.5].forEach(x => {
+            const tower = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 8, 16), stoneMat);
+            tower.position.set(x, 4.0, 0);
+            castleGroup.add(tower);
+
+            const roof = new THREE.Mesh(new THREE.ConeGeometry(1.6, 3.8, 16), purpleRoofMat);
+            roof.position.set(x, 9.8, 0);
+            castleGroup.add(roof);
+
+            const ball = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 12), goldMat);
+            ball.position.set(x, 11.8, 0);
+            castleGroup.add(ball);
         });
+
+        // Cartoon Rounded Trees on Hills (screen_0.jpg)
+        [-15, -10, 10, 16].forEach((tx, i) => {
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 3.5, 12), new THREE.MeshPhongMaterial({ color: 0x78350f }));
+            trunk.position.set(tx, 1.75, -20 + i * 2);
+            castleGroup.add(trunk);
+
+            const leaves = new THREE.Mesh(new THREE.SphereGeometry(2.5, 14, 14), new THREE.MeshPhongMaterial({ color: 0x22c55e, specular: 0x86efac, shininess: 20 }));
+            leaves.position.set(tx, 4.8, -20 + i * 2);
+            castleGroup.add(leaves);
+        });
+
+        this.scene.add(castleGroup);
     }
 
     bindEvents() {
@@ -152,13 +202,13 @@ class GameEngine {
 
         const canvas = this.renderer.domElement;
 
-        // Smooth Continuous Aiming: Moving cursor/finger maps directly to aim angles
+        // Smooth Continuous Aiming directly toward cursor/touch
         const updateAimFromPoint = (clientX, clientY) => {
             const nx = (clientX / window.innerWidth - 0.5) * 2; // -1 to 1
             const ny = 1.0 - (clientY / window.innerHeight);     // 0 (bottom) to 1 (top)
 
             const yaw = -nx * 0.45;
-            const pitch = 0.06 + ny * 0.45;
+            const pitch = 0.08 + ny * 0.55;
             this.cannon.setAim(pitch, yaw);
         };
 
@@ -180,7 +230,7 @@ class GameEngine {
             }
         });
 
-        // Touch support
+        // Touch controls
         canvas.addEventListener('touchstart', (e) => {
             if (e.touches.length > 0) {
                 if (window.Sound) window.Sound.resume();
@@ -275,11 +325,11 @@ class GameEngine {
         else if (this.ammo >= 1) stars = 2;
 
         const bonusCoins = 100 + (stars * 25);
-        this.addCoins(bonusCoins, new THREE.Vector3(0, 3, 0));
+        this.addCoins(bonusCoins, new THREE.Vector3(0, 5, 0));
 
         const starStr = '★'.repeat(stars) + '☆'.repeat(3 - stars);
         document.getElementById('win-stars').innerText = starStr;
-        document.getElementById('win-percent').innerText = `${percent}% Destroyed!`;
+        document.getElementById('win-percent').innerText = `${percent}% Cleared!`;
         document.getElementById('win-reward').innerText = `+${bonusCoins} Gold Coins`;
         document.getElementById('win-modal').classList.remove('hidden');
 
@@ -328,43 +378,62 @@ class GameEngine {
             : 0;
         document.getElementById('percent-display').innerText = `${percent}%`;
         document.getElementById('progress-fill').style.width = `${percent}%`;
-
-        const names = {
-            standard: "Royal Star Cannon",
-            dragon: "Golden Dragon Cannon",
-            inferno: "Inferno Cannon",
-            bouncy: "Jester's Bouncy Cannon",
-            triple: "Triple Cannon"
-        };
-        document.getElementById('active-cannon-name').innerText = names[this.equippedCannon] || "Cannon";
     }
 
-    // Ball Flight Particle Trail
-    spawnBallTrail(pos, cannonType) {
-        const colors = (cannonType === 'dragon') ? [0xffd700, 0xfde047] :
-                       (cannonType === 'inferno') ? [0xff3d00, 0xf97316] :
-                       (cannonType === 'bouncy')  ? [0x00f0ff, 0x38bdf8] :
-                       [0xfde047, 0x38bdf8, 0xffffff];
+    // Fiery Jet Trail behind Ball (screen_1.jpg)
+    spawnBallTrail(pos) {
+        for (let i = 0; i < 2; i++) {
+            const geo = new THREE.SphereGeometry(0.22, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({
+                color: (i === 0) ? 0xfacc15 : 0xf97316,
+                transparent: true,
+                opacity: 0.85
+            });
+            const p = new THREE.Mesh(geo, mat);
+            p.position.copy(pos);
+            this.scene.add(p);
 
-        const col = colors[Math.floor(Math.random() * colors.length)];
-        const geo = new THREE.PlaneGeometry(0.25, 0.25);
-        const mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95, side: THREE.DoubleSide });
-        const p = new THREE.Mesh(geo, mat);
-        p.position.copy(pos);
-        p.rotation.z = Math.random() * Math.PI;
-        this.scene.add(p);
+            this.particles.push({
+                mesh: p,
+                vel: new THREE.Vector3((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4),
+                life: 0.28,
+                maxLife: 0.28,
+                isFlame: true
+            });
+        }
+    }
 
-        this.particles.push({
-            mesh: p,
-            vel: new THREE.Vector3((Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.5),
-            life: 0.35,
-            maxLife: 0.35,
-            isSparkle: true
-        });
+    // Juicy Colorful Paint/Liquid Splatter (screen_1.jpg!)
+    spawnColorSplatter(pos, color = 'red') {
+        const colorMap = {
+            red: 0xdc2626,
+            yellow: 0xfacc15,
+            blue: 0x0284c7,
+            magenta: 0xd946ef,
+            orange: 0xf97316
+        };
+        const hex = colorMap[color] || 0xdc2626;
+
+        for (let i = 0; i < 25; i++) {
+            const radius = 0.15 + Math.random() * 0.25;
+            const geo = new THREE.SphereGeometry(radius, 8, 8);
+            const mat = new THREE.MeshPhongMaterial({ color: hex, specular: 0xffffff, shininess: 120 });
+            const p = new THREE.Mesh(geo, mat);
+            p.position.copy(pos);
+            this.scene.add(p);
+
+            const vel = new THREE.Vector3(
+                (Math.random() - 0.5) * 10,
+                Math.random() * 8 + 2,
+                (Math.random() - 0.5) * 10
+            );
+
+            this.particles.push({ mesh: p, vel, life: 0.7, maxLife: 0.7 });
+        }
     }
 
     spawnMuzzleBlast(pos) {
-        const ringGeo = new THREE.RingGeometry(0.35, 0.7, 24);
+        const ringGeo = new THREE.RingGeometry(0.4, 0.8, 24);
         const ringMat = new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.95, side: THREE.DoubleSide });
         const ring = new THREE.Mesh(ringGeo, ringMat);
         ring.position.copy(pos);
@@ -372,7 +441,7 @@ class GameEngine {
         this.scene.add(ring);
         this.particles.push({ mesh: ring, vel: new THREE.Vector3(0,0,0), life: 0.22, maxLife: 0.22, isRing: true });
 
-        for (let i = 0; i < 12; i++) {
+        for (let i = 0; i < 14; i++) {
             const geo = new THREE.SphereGeometry(0.3 + Math.random() * 0.2, 8, 8);
             const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
             const p = new THREE.Mesh(geo, mat);
@@ -380,7 +449,7 @@ class GameEngine {
             this.scene.add(p);
 
             const vel = new THREE.Vector3((Math.random() - 0.5) * 4, Math.random() * 2 + 1, (Math.random() - 0.5) * 4 - 3);
-            this.particles.push({ mesh: p, vel, life: 0.5, maxLife: 0.5 });
+            this.particles.push({ mesh: p, vel, life: 0.45, maxLife: 0.45 });
         }
     }
 
@@ -434,7 +503,7 @@ class GameEngine {
                 side: THREE.DoubleSide
             });
             const p = new THREE.Mesh(geo, mat);
-            p.position.set((Math.random() - 0.5) * 16, 10 + Math.random() * 4, 3 + (Math.random() - 0.5) * 6);
+            p.position.set((Math.random() - 0.5) * 16, 12 + Math.random() * 4, 3 + (Math.random() - 0.5) * 6);
             this.scene.add(p);
 
             const vel = new THREE.Vector3((Math.random() - 0.5) * 3, -Math.random() * 3 - 1.5, (Math.random() - 0.5) * 3);
@@ -454,7 +523,7 @@ class GameEngine {
             ball.trailTimer = (ball.trailTimer || 0) + dt;
             if (ball.trailTimer > 0.02) {
                 ball.trailTimer = 0;
-                this.spawnBallTrail(ball.body.position, ball.type);
+                this.spawnBallTrail(ball.body.position);
             }
         }
 
@@ -483,7 +552,10 @@ class GameEngine {
                 } else if (p.isFlash) {
                     p.mesh.scale.multiplyScalar(1.08);
                     p.mesh.material.opacity = p.life / p.maxLife;
-                } else if (p.isConfetti || p.isSparkle) {
+                } else if (p.isFlame) {
+                    p.mesh.scale.multiplyScalar(0.92);
+                    p.mesh.material.opacity = p.life / p.maxLife;
+                } else if (p.isConfetti) {
                     p.mesh.rotation.x += dt * 6;
                     p.mesh.rotation.y += dt * 5;
                     p.mesh.material.opacity = p.life / p.maxLife;
@@ -496,14 +568,15 @@ class GameEngine {
         this.renderer.render(this.scene, this.camera);
     }
 
+    // Track targets knocked off the purple shelf (shelf is at y = 3.95)
     trackDestructions() {
         let destroyed = 0;
         for (let item of window.Physics.destructibleBodies) {
             if (!item.destroyed) {
-                const dy = Math.abs(item.body.position.y - item.originalY);
                 const pos = item.body.position;
 
-                if (pos.y < 0.35 || dy > 1.0 || Math.abs(pos.x) > 7.5 || Math.abs(pos.z) > 7.5) {
+                // Knocked off condition: fallen below shelf (y < 3.7) or blown off horizontally
+                if (pos.y < 3.7 || Math.abs(pos.x) > 4.6 || Math.abs(pos.z) > 2.2) {
                     item.destroyed = true;
                     this.score += item.points;
                     this.addCoins(item.points, pos);
