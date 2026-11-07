@@ -1,4 +1,4 @@
-// Royal Cannon ("Toop") System - MeshPhongMaterial & High-Energy Ball Physics
+// Royal Cannon ("Toop") Controller - Flared Cartoon Bell-Mouth Barrel & Responsive Aiming
 
 class CannonController {
     constructor(scene) {
@@ -11,12 +11,13 @@ class CannonController {
         this.springSquash = 1.0;
         this.isRecoiling = false;
 
-        this.position = new THREE.Vector3(0, 0.4, 11.5);
+        // Positioned clearly in front of the platform
+        this.position = new THREE.Vector3(0, 0.45, 10.8);
         this.pitch = 0.22;
         this.yaw = 0.0;
 
         this.trajectoryLine = null;
-        this.maxTrajectoryPoints = 45;
+        this.maxTrajectoryPoints = 48;
 
         this.buildCannonMesh();
         this.buildTrajectoryVisualizer();
@@ -26,7 +27,6 @@ class CannonController {
     buildCannonMesh() {
         this.group.position.copy(this.position);
 
-        // Glossy vibrant materials
         const royalBlueMat = new THREE.MeshPhongMaterial({
             color: 0x1d4ed8,
             specular: 0x93c5fd,
@@ -40,110 +40,114 @@ class CannonController {
         const goldMat = new THREE.MeshPhongMaterial({
             color: 0xffd700,
             specular: 0xfffae5,
-            shininess: 140
+            shininess: 150
         });
         const darkWoodMat = new THREE.MeshPhongMaterial({
-            color: 0x451a03,
+            color: 0x3d1a04,
             specular: 0x78350f,
-            shininess: 50
+            shininess: 40
         });
 
-        // 1. Carriage Base (Red & Gold)
-        const baseGeo = new THREE.BoxGeometry(1.5, 0.45, 1.9);
+        // 1. Carriage Base (Royal Red & Gold Chassis)
+        const baseGeo = new THREE.BoxGeometry(1.6, 0.5, 2.0);
         const baseMesh = new THREE.Mesh(baseGeo, royalRedMat);
         baseMesh.position.y = 0.25;
         baseMesh.castShadow = true;
         this.group.add(baseMesh);
 
-        // Gold Trim
-        const trimGeo = new THREE.BoxGeometry(1.56, 0.1, 1.96);
+        // Gold Filigree Side Panels
+        const trimGeo = new THREE.BoxGeometry(1.68, 0.12, 2.08);
         const trimMesh = new THREE.Mesh(trimGeo, goldMat);
-        trimMesh.position.y = 0.48;
+        trimMesh.position.y = 0.52;
         this.group.add(trimMesh);
 
-        // 2. Wheels
-        const wheelGeo = new THREE.CylinderGeometry(0.58, 0.58, 0.24, 18);
-        [-0.88, 0.88].forEach(x => {
+        // 2. Large Cannon Wheels with Golden Rims & Studs
+        const wheelRadius = 0.65;
+        const wheelGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, 0.26, 20);
+        [-0.95, 0.95].forEach(x => {
             const wheel = new THREE.Mesh(wheelGeo, darkWoodMat);
             wheel.rotation.z = Math.PI / 2;
-            wheel.position.set(x, 0.45, 0);
+            wheel.position.set(x, 0.5, 0);
             wheel.castShadow = true;
 
-            const rim = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.05, 8, 20), goldMat);
+            // Golden Rim
+            const rim = new THREE.Mesh(new THREE.TorusGeometry(wheelRadius, 0.06, 8, 24), goldMat);
             rim.rotation.y = Math.PI / 2;
-            rim.position.set(x, 0.45, 0);
+            rim.position.set(x, 0.5, 0);
 
-            const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.28, 12), goldMat);
+            // Hubcap
+            const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.3, 16), goldMat);
             hub.rotation.z = Math.PI / 2;
-            hub.position.set(x, 0.45, 0);
+            hub.position.set(x, 0.5, 0);
 
             this.group.add(wheel);
             this.group.add(rim);
             this.group.add(hub);
         });
 
-        // 3. Barrel & Crown Muzzle
+        // 3. Cannon Pivot & Barrel
         this.barrelPivot = new THREE.Group();
-        this.barrelPivot.position.set(0, 0.75, 0);
+        this.barrelPivot.position.set(0, 0.8, 0);
         this.group.add(this.barrelPivot);
 
-        const barrelGeo = new THREE.CylinderGeometry(0.36, 0.48, 2.3, 24);
+        // Classic Flared Cartoon Cannon Barrel
+        const barrelGeo = new THREE.CylinderGeometry(0.38, 0.52, 2.5, 24);
         this.barrel = new THREE.Mesh(barrelGeo, royalBlueMat);
         this.barrel.rotation.x = Math.PI / 2;
-        this.barrel.position.z = -0.7;
+        this.barrel.position.z = -0.75;
         this.barrel.castShadow = true;
         this.barrelPivot.add(this.barrel);
 
-        // Golden Middle Ring
-        const midRing = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.06, 12, 24), goldMat);
+        // Gold Reinforcing Rings
+        const midRing = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.07, 12, 24), goldMat);
         midRing.position.y = 0.2;
         this.barrel.add(midRing);
 
-        // Golden Crown Muzzle Battlements
-        const crownMuzzle = new THREE.Mesh(new THREE.TorusGeometry(0.40, 0.08, 12, 24), goldMat);
-        crownMuzzle.position.y = 1.15;
-        this.barrel.add(crownMuzzle);
+        // Flared Muzzle Bell-Mouth (Front)
+        const bellMouth = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.38, 0.35, 24), goldMat);
+        bellMouth.position.y = 1.25;
+        this.barrel.add(bellMouth);
 
+        // Crown Muzzle Battlements / Spikes (Icon feature!)
         for (let i = 0; i < 8; i++) {
             const angle = (i / 8) * Math.PI * 2;
-            const spikeGeo = new THREE.ConeGeometry(0.08, 0.22, 6);
-            const spike = new THREE.Mesh(spikeGeo, goldMat);
-            spike.position.set(Math.cos(angle) * 0.40, 1.25, Math.sin(angle) * 0.40);
-            spike.rotation.z = -Math.cos(angle) * 0.3;
-            spike.rotation.x = Math.sin(angle) * 0.3;
+            const spike = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.24, 6), goldMat);
+            spike.position.set(Math.cos(angle) * 0.46, 1.45, Math.sin(angle) * 0.46);
+            spike.rotation.z = -Math.cos(angle) * 0.35;
+            spike.rotation.x = Math.sin(angle) * 0.35;
             this.barrel.add(spike);
         }
 
-        // Breech Ball
-        const breechBall = new THREE.Mesh(new THREE.SphereGeometry(0.44, 16, 16), goldMat);
-        breechBall.position.y = -1.15;
-        this.barrel.add(breechBall);
+        // Golden Breach Ball (Rear)
+        const breech = new THREE.Mesh(new THREE.SphereGeometry(0.48, 18, 18), goldMat);
+        breech.position.y = -1.25;
+        this.barrel.add(breech);
 
-        // 4. Golden Spring
+        // 4. Golden Spring / Piston (Icon Feature!)
         const springGroup = new THREE.Group();
         for (let c = 0; c < 5; c++) {
-            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.04, 8, 16), goldMat);
-            ring.position.y = (c - 2) * 0.14;
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.045, 8, 16), goldMat);
+            ring.position.y = (c - 2) * 0.15;
             springGroup.add(ring);
         }
-        springGroup.position.set(0, 0, -1.6);
+        springGroup.position.set(0, 0, -1.75);
         this.barrelPivot.add(springGroup);
         this.spring = springGroup;
 
-        // 5. Loaded Star Ball Preview
+        // 5. Loaded Star Ball Preview (Sitting in the muzzle)
         const starTexture = window.Textures ? window.Textures.createStarBallTexture() : null;
         const ballMat = new THREE.MeshPhongMaterial({
             map: starTexture,
             specular: 0xffffff,
             shininess: 120
         });
-        this.loadedBallPreview = new THREE.Mesh(new THREE.SphereGeometry(0.38, 24, 24), ballMat);
-        this.loadedBallPreview.position.set(0, 0, -2.15);
+        this.loadedBallPreview = new THREE.Mesh(new THREE.SphereGeometry(0.40, 24, 24), ballMat);
+        this.loadedBallPreview.position.set(0, 0, -2.35);
         this.barrelPivot.add(this.loadedBallPreview);
 
-        // Flash Light
-        this.flashLight = new THREE.PointLight(0xffea00, 0, 12);
-        this.flashLight.position.set(0, 0, -2.3);
+        // Muzzle Flash PointLight
+        this.flashLight = new THREE.PointLight(0xffea00, 0, 14);
+        this.flashLight.position.set(0, 0, -2.5);
         this.barrelPivot.add(this.flashLight);
 
         this.updateRotation();
@@ -156,8 +160,8 @@ class CannonController {
 
         const material = new THREE.LineDashedMaterial({
             color: 0xffd700,
-            dashSize: 0.35,
-            gapSize: 0.2,
+            dashSize: 0.38,
+            gapSize: 0.22,
             linewidth: 4
         });
 
@@ -167,11 +171,11 @@ class CannonController {
     }
 
     setAim(pitch, yaw) {
-        this.pitch = Math.max(0.05, Math.min(pitch, 0.75));
-        this.yaw = Math.max(-0.55, Math.min(yaw, 0.55));
+        this.pitch = Math.max(0.04, Math.min(pitch, 0.72));
+        this.yaw = Math.max(-0.6, Math.min(yaw, 0.6));
         this.updateRotation();
         this.updateTrajectory();
-        this.springSquash = 0.7;
+        this.springSquash = 0.75;
     }
 
     updateRotation() {
@@ -181,24 +185,24 @@ class CannonController {
     }
 
     getMuzzlePosition() {
-        const muzzleLocal = new THREE.Vector3(0, 0, -2.2);
+        const muzzleLocal = new THREE.Vector3(0, 0, -2.4);
         this.barrelPivot.localToWorld(muzzleLocal);
         return muzzleLocal;
     }
 
-    getFiringVelocity(baseSpeed = 44) {
+    getFiringVelocity(baseSpeed = 46) {
         const dir = new THREE.Vector3(0, 0, -1);
         dir.applyEuler(this.barrelPivot.rotation);
         dir.normalize();
         return dir.multiplyScalar(baseSpeed);
     }
 
-    updateTrajectory(speed = 44) {
+    updateTrajectory(speed = 46) {
         if (!this.trajectoryLine) return;
 
         const startPos = this.getMuzzlePosition();
         const velocity = this.getFiringVelocity(speed);
-        const gravity = -9.82;
+        const gravity = -11.5;
         const dt = 0.045;
 
         const positions = this.trajectoryLine.geometry.attributes.position.array;
@@ -229,9 +233,9 @@ class CannonController {
 
     triggerRecoil() {
         this.isRecoiling = true;
-        this.recoilOffset = 0.6;
-        this.springSquash = 1.5;
-        this.flashLight.intensity = 8;
+        this.recoilOffset = 0.65;
+        this.springSquash = 1.55;
+        this.flashLight.intensity = 10;
 
         if (this.loadedBallPreview) {
             this.loadedBallPreview.visible = false;
@@ -244,18 +248,18 @@ class CannonController {
             if (this.flashLight) this.flashLight.intensity = 0;
         }, 80);
 
-        if (window.Game) window.Game.triggerScreenShake(0.4);
+        if (window.Game) window.Game.triggerScreenShake(0.45);
     }
 
     update(dt) {
         if (this.isRecoiling) {
-            this.recoilOffset -= dt * 3.0;
+            this.recoilOffset -= dt * 3.2;
             if (this.recoilOffset <= 0) {
                 this.recoilOffset = 0;
                 this.isRecoiling = false;
             }
             if (this.barrel) {
-                this.barrel.position.z = -0.7 + this.recoilOffset;
+                this.barrel.position.z = -0.75 + this.recoilOffset;
             }
         }
 
@@ -277,7 +281,7 @@ class CannonController {
         if (window.Sound) window.Sound.playCannonFire(isExplosive);
 
         const startPos = this.getMuzzlePosition();
-        const baseSpeed = (cannonType === 'dragon' ? 52 : 44) * powerBonus;
+        const baseSpeed = (cannonType === 'dragon' ? 54 : 46) * powerBonus;
 
         if (cannonType === 'triple') {
             [-0.08, 0, 0.08].forEach(spreadYaw => {
@@ -329,9 +333,9 @@ class CannonController {
         ballMesh.castShadow = true;
         this.scene.add(ballMesh);
 
-        let mass = 12.0;
-        if (cannonType === 'dragon') mass = 26.0;
-        if (cannonType === 'bouncy') mass = 7.0;
+        let mass = 14.0;
+        if (cannonType === 'dragon') mass = 28.0;
+        if (cannonType === 'bouncy') mass = 8.0;
 
         const ballShape = new CANNON.Sphere(radius);
         const ballBody = new CANNON.Body({
@@ -342,7 +346,7 @@ class CannonController {
         ballBody.addShape(ballShape);
         ballBody.velocity.set(velVec.x, velVec.y, velVec.z);
 
-        // Rapid 3D Spin in Flight!
+        // Spin in Flight
         ballBody.angularVelocity.set(
             (Math.random() - 0.5) * 20,
             Math.random() * 25 + 15,
@@ -353,15 +357,14 @@ class CannonController {
             ballBody.material.restitution = 0.94;
         }
 
-        // Direct Kinetic Punch Collision Listener!
+        // High-Impact Collision
         ballBody.addEventListener('collide', (e) => {
             const impactVelocity = e.contact.getImpactVelocityAlongNormal();
             if (impactVelocity > 2.0 && window.Sound) {
                 window.Sound.playImpact(impactVelocity / 12);
-                if (window.Game) window.Game.triggerScreenShake(Math.min(impactVelocity * 0.04, 0.35));
+                if (window.Game) window.Game.triggerScreenShake(Math.min(impactVelocity * 0.04, 0.4));
             }
 
-            // Punchy impulse transfer to the hit body!
             if (e.body && window.Physics) {
                 window.Physics.applyKineticImpact(e.body, ballBody.velocity);
             }
@@ -369,7 +372,7 @@ class CannonController {
             if (cannonType === 'inferno' && !ballBody.hasDetonated) {
                 ballBody.hasDetonated = true;
                 setTimeout(() => {
-                    window.Physics.explode(ballBody.position, 6.5, 100);
+                    window.Physics.explode(ballBody.position, 6.5, 110);
                     window.Physics.removeBody(ballBody, ballMesh);
                 }, 30);
             }

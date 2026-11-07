@@ -1,5 +1,5 @@
 // Royal Smash 3D - High-Energy Destruction Physics (Cannon.js)
-// Implements punchy impact force transfer, low-friction tumbling, and explosive TNT shockwaves
+// Solves collision orientations, kinetic impulse transfers, and realistic domino collapses
 
 class PhysicsManager {
     constructor() {
@@ -21,11 +21,11 @@ class PhysicsManager {
 
     initWorld() {
         this.world = new CANNON.World();
-        this.world.gravity.set(0, -9.82, 0);
+        this.world.gravity.set(0, -11.5, 0); // Crisp, punchy gravity
         this.world.broadphase = new CANNON.NaiveBroadphase();
-        this.world.solver.iterations = 18;
+        this.world.solver.iterations = 20; // High precision solver
         this.world.defaultContactMaterial.contactEquationStiffness = 1e8;
-        this.world.defaultContactMaterial.contactEquationRelaxation = 3;
+        this.world.defaultContactMaterial.contactEquationRelaxation = 2.5;
 
         // Materials
         this.groundMaterial = new CANNON.Material("ground");
@@ -35,26 +35,26 @@ class PhysicsManager {
         this.jarMaterial = new CANNON.Material("jar");
         this.ballMaterial = new CANNON.Material("ball");
 
-        // Dynamic Contacts (Low friction = juicy sliding and tumbling!)
+        // Contact materials (Low friction for dramatic slides & tumbling)
         const ballBlockContact = new CANNON.ContactMaterial(this.ballMaterial, this.blockMaterial, {
-            friction: 0.2,
-            restitution: 0.45
+            friction: 0.15,
+            restitution: 0.5
         });
         const ballStoneContact = new CANNON.ContactMaterial(this.ballMaterial, this.stoneMaterial, {
-            friction: 0.25,
-            restitution: 0.35
+            friction: 0.2,
+            restitution: 0.4
         });
         const blockBlockContact = new CANNON.ContactMaterial(this.blockMaterial, this.blockMaterial, {
-            friction: 0.28, // Low friction for domino collapses
-            restitution: 0.2
+            friction: 0.25, // Blocks slide and topple naturally
+            restitution: 0.15
         });
         const blockGroundContact = new CANNON.ContactMaterial(this.blockMaterial, this.groundMaterial, {
-            friction: 0.45,
-            restitution: 0.22
+            friction: 0.4,
+            restitution: 0.18
         });
         const stoneGroundContact = new CANNON.ContactMaterial(this.stoneMaterial, this.groundMaterial, {
-            friction: 0.55,
-            restitution: 0.15
+            friction: 0.5,
+            restitution: 0.12
         });
 
         this.world.addContactMaterial(ballBlockContact);
@@ -76,7 +76,6 @@ class PhysicsManager {
 
     step(dt) {
         if (!this.world) return;
-        // 60 Hz physics step with 5 substeps for super-accurate collisions
         this.world.step(1 / 60, dt, 5);
 
         for (let i = 0; i < this.bodies.length; i++) {
@@ -111,7 +110,6 @@ class PhysicsManager {
                 body: body,
                 mesh: mesh,
                 originalY: body.position.y,
-                originalPos: new THREE.Vector3(body.position.x, body.position.y, body.position.z),
                 type: meta.type || 'wood',
                 destroyed: false,
                 points: meta.points || 15
@@ -131,23 +129,24 @@ class PhysicsManager {
         }
     }
 
-    // High-Energy Kinetic Punch when Ball impacts any Block
+    // High-Impact Kinetic Impulse Transfer on direct Cannonball hit
     applyKineticImpact(targetBody, ballVelocity) {
         if (!targetBody || targetBody.mass === 0) return;
 
         const dir = ballVelocity.clone();
         dir.normalize();
-        dir.y += 0.3; // Upward kick for dramatic toppling
+        dir.y += 0.25; // Upward trajectory pop
         dir.normalize();
 
-        const impulseForce = Math.min(targetBody.mass * 48, 120);
-        const impulse = dir.scale(impulseForce);
+        // Punchy forward impulse force
+        const force = Math.min(targetBody.mass * 55, 140);
+        const impulse = dir.scale(force);
         targetBody.applyImpulse(impulse, targetBody.position);
         targetBody.wakeUp();
     }
 
-    // Explosive TNT Detonation with Radius Falloff and Upward Air Blast
-    explode(epicenter, radius = 7.5, maxForce = 120) {
+    // Explosive Radial Detonation (TNT)
+    explode(epicenter, radius = 7.5, maxForce = 130) {
         if (window.Sound) window.Sound.playExplosion();
         if (window.Game) window.Game.spawnExplosionFX(epicenter);
 
@@ -162,10 +161,10 @@ class PhysicsManager {
             if (dist < radius && dist > 0.05) {
                 diff.normalize();
                 const forceFactor = (1 - (dist / radius)) * maxForce;
-                diff.y += 0.55; // Upward air blast
+                diff.y += 0.6; // Dramatic upward blast
                 diff.normalize();
 
-                const impulse = diff.scale(forceFactor * body.mass * 0.85);
+                const impulse = diff.scale(forceFactor * body.mass * 0.9);
                 body.applyImpulse(impulse, body.position);
                 body.wakeUp();
             }

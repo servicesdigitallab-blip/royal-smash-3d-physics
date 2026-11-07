@@ -1,4 +1,4 @@
-// Royal Smash 3D - Main Game Engine (Ultra-Polished & High-Vibrancy)
+// Royal Smash 3D - Main Game Engine (Polished Cannon Framing & Smooth Aiming)
 
 class GameEngine {
     constructor() {
@@ -7,8 +7,8 @@ class GameEngine {
         this.renderer = null;
         this.cannon = null;
 
-        // 3/4 Isometric Perspective Camera
-        this.camBasePos = new THREE.Vector3(3.8, 6.8, 17.5);
+        // Clean Camera Framing: Cannon centered at bottom, looking up at target castle
+        this.camBasePos = new THREE.Vector3(0, 5.2, 16.5);
         this.shakeIntensity = 0;
 
         // Economy & Inventory
@@ -32,7 +32,6 @@ class GameEngine {
 
         this.particles = [];
         this.isAiming = false;
-        this.pointerStart = { x: 0, y: 0 };
 
         this.init();
     }
@@ -42,14 +41,14 @@ class GameEngine {
 
         // 1. Scene & Camera
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x38bdf8); // Sky Cyan
+        this.scene.background = new THREE.Color(0x38bdf8); // Vibrant Royal Sky Cyan
         this.scene.fog = new THREE.FogExp2(0x38bdf8, 0.009);
 
         this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 150);
         this.camera.position.copy(this.camBasePos);
-        this.camera.lookAt(0, 2.6, 0);
+        this.camera.lookAt(0, 2.2, 0);
 
-        // 2. High-Performance Renderer
+        // 2. High-Performance WebGL Renderer
         this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -79,7 +78,7 @@ class GameEngine {
     }
 
     setupLights() {
-        // Crisp Sunlight
+        // High-Vibrancy Crisp Sunlight
         const sunLight = new THREE.DirectionalLight(0xfffaed, 1.6);
         sunLight.position.set(15, 30, 18);
         sunLight.castShadow = true;
@@ -94,7 +93,7 @@ class GameEngine {
         sunLight.shadow.bias = -0.0003;
         this.scene.add(sunLight);
 
-        // High-Vibrancy Ambient Lighting
+        // Ambient Fills for bright saturated colors
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x0284c7, 0.95);
         this.scene.add(hemiLight);
 
@@ -120,7 +119,7 @@ class GameEngine {
         wall.castShadow = true;
         this.scene.add(wall);
 
-        // Castle Battlements
+        // Battlements
         for (let i = -22; i <= 22; i += 3.5) {
             const crenel = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.7, 3.2), wallMat);
             crenel.position.set(i, 10.2, -16);
@@ -128,7 +127,7 @@ class GameEngine {
             this.scene.add(crenel);
         }
 
-        // Royal Flags on Wall
+        // Royal Banners
         const flagColors = [0xef4444, 0x3b82f6, 0xfacc15];
         [-15, -7, 1, 9, 17].forEach((fx, idx) => {
             const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 4.5, 8), new THREE.MeshPhongMaterial({ color: 0x334155 }));
@@ -153,38 +152,55 @@ class GameEngine {
 
         const canvas = this.renderer.domElement;
 
-        const onDown = (clientX, clientY) => {
+        // Smooth Continuous Aiming: Moving cursor/finger maps directly to aim angles
+        const updateAimFromPoint = (clientX, clientY) => {
+            const nx = (clientX / window.innerWidth - 0.5) * 2; // -1 to 1
+            const ny = 1.0 - (clientY / window.innerHeight);     // 0 (bottom) to 1 (top)
+
+            const yaw = -nx * 0.45;
+            const pitch = 0.06 + ny * 0.45;
+            this.cannon.setAim(pitch, yaw);
+        };
+
+        canvas.addEventListener('mousemove', (e) => {
+            updateAimFromPoint(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
             if (this.levelCompleted || this.levelFailed || this.ammo <= 0) return;
-            this.isAiming = true;
-            this.pointerStart = { x: clientX, y: clientY };
             if (window.Sound) window.Sound.resume();
-        };
+            this.isAiming = true;
+            updateAimFromPoint(e.clientX, e.clientY);
+        });
 
-        const onMove = (clientX, clientY) => {
-            if (!this.isAiming) return;
-            const dx = (clientX - this.pointerStart.x) / window.innerWidth;
-            const dy = (clientY - this.pointerStart.y) / window.innerHeight;
-            this.cannon.setAim(0.22 - dy * 0.9, -dx * 1.5);
-        };
-
-        const onUp = () => {
+        window.addEventListener('mouseup', () => {
             if (this.isAiming) {
                 this.isAiming = false;
                 this.shoot();
             }
-        };
+        });
 
-        canvas.addEventListener('mousedown', (e) => onDown(e.clientX, e.clientY));
-        window.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
-        window.addEventListener('mouseup', onUp);
-
+        // Touch support
         canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 0) onDown(e.touches[0].clientX, e.touches[0].clientY);
+            if (e.touches.length > 0) {
+                if (window.Sound) window.Sound.resume();
+                this.isAiming = true;
+                updateAimFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+            }
         }, { passive: true });
+
         window.addEventListener('touchmove', (e) => {
-            if (e.touches.length > 0) onMove(e.touches[0].clientX, e.touches[0].clientY);
+            if (e.touches.length > 0) {
+                updateAimFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+            }
         }, { passive: true });
-        window.addEventListener('touchend', onUp);
+
+        window.addEventListener('touchend', () => {
+            if (this.isAiming) {
+                this.isAiming = false;
+                this.shoot();
+            }
+        });
     }
 
     shoot() {
