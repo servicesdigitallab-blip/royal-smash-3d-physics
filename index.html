@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Royal Smash 3D - Physics Cannon Destruction</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #87ceeb;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+        }
+
+        /* Top HUD */
+        .hud-top {
+            position: absolute;
+            top: 14px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-left, .hud-right, .hud-center {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            pointer-events: auto;
+        }
+
+        .hud-badge {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 215, 0, 0.35);
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 999px;
+            font-size: 15px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .coin-icon {
+            color: #ffd700;
+            font-size: 18px;
+            filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.8));
+        }
+
+        /* Center Goal Progress */
+        .progress-box {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            border: 2px solid #ffd700;
+            border-radius: 16px;
+            padding: 8px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 220px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+        }
+
+        .progress-label {
+            color: #ffd700;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #f59e0b, #10b981);
+            transition: width 0.3s ease-out;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            color: #e2e8f0;
+            font-size: 13px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        /* Action Buttons */
+        .btn-royal {
+            background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+            color: #ffffff;
+            border: 1px solid #ffd700;
+            padding: 9px 18px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-royal:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(245, 158, 11, 0.55);
+        }
+
+        .btn-royal:active {
+            transform: translateY(1px);
+        }
+
+        .btn-icon-only {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        /* Aiming Prompt Overlay */
+        .aim-overlay {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 10px 24px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 600;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            animation: pulse-tip 2.5s infinite;
+        }
+
+        @keyframes pulse-tip {
+            0%, 100% { opacity: 0.9; transform: translateX(-50%) scale(1); }
+            50% { opacity: 0.5; transform: translateX(-50%) scale(0.97); }
+        }
+
+        /* Floating Coins Animation */
+        .floating-coin {
+            position: absolute;
+            color: #ffd700;
+            font-size: 18px;
+            font-weight: 900;
+            text-shadow: 0 0 8px rgba(0, 0, 0, 0.8), 0 0 12px rgba(255, 215, 0, 0.8);
+            pointer-events: none;
+            animation: float-up 1.2s forwards cubic-bezier(0.1, 0.8, 0.2, 1);
+            z-index: 50;
+        }
+
+        @keyframes float-up {
+            0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+            20% { opacity: 1; transform: translate(-50%, -20px) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -80px) scale(1); }
+        }
+
+        /* Modal Dialogs */
+        .modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(12px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-backdrop.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .modal-card {
+            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+            border: 2px solid #ffd700;
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 520px;
+            width: 90%;
+            color: #ffffff;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(255, 215, 0, 0.2);
+            text-align: center;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 28px;
+            font-weight: 900;
+            color: #ffd700;
+            text-shadow: 0 2px 10px rgba(255, 215, 0, 0.4);
+            margin-bottom: 8px;
+        }
+
+        .modal-subtitle {
+            font-size: 15px;
+            color: #94a3b8;
+            margin-bottom: 20px;
+        }
+
+        .stars-container {
+            font-size: 42px;
+            color: #ffd700;
+            letter-spacing: 6px;
+            margin: 12px 0 20px;
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+        }
+
+        /* Shop Grid */
+        .shop-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin: 16px 0;
+            text-align: left;
+        }
+
+        .shop-item {
+            background: rgba(30, 41, 59, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 14px;
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .shop-item.active {
+            border-color: #ffd700;
+            background: rgba(245, 158, 11, 0.15);
+        }
+
+        .shop-item-info h4 {
+            font-size: 16px;
+            font-weight: 800;
+            color: #f8fafc;
+            margin-bottom: 2px;
+        }
+
+        .shop-item-info p {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .btn-buy {
+            padding: 6px 14px;
+            font-size: 13px;
+        }
+
+        /* Level Select Grid */
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .level-btn {
+            background: rgba(30, 41, 59, 0.9);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 16px;
+            padding: 16px;
+            cursor: pointer;
+            font-weight: 800;
+            transition: all 0.2s;
+        }
+
+        .level-btn:hover {
+            border-color: #ffd700;
+            transform: translateY(-2px);
+        }
+
+        .level-btn.current {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.2);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 14px;
+            right: 18px;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 22px;
+            cursor: pointer;
+        }
+
+        .close-btn:hover {
+            color: #ffffff;
+        }
+    </style>
+
+    <!-- Three.js and Cannon.js (Locally bundled with CDN fallback) -->
+    <script src="lib/three.min.js"></script>
+    <script>
+        if (typeof THREE === 'undefined') {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');
+        }
+    </script>
+    <script src="lib/cannon.min.js"></script>
+    <script>
+        if (typeof CANNON === 'undefined') {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"><\/script>');
+        }
+    </script>
+</head>
+<body>
+
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- HUD Overlay -->
+    <div class="hud-top">
+        <div class="hud-left">
+            <div class="hud-badge">
+                <span class="coin-icon">🪙</span>
+                <span id="coin-display">150</span>
+            </div>
+            <div class="hud-badge">
+                <span>💣 Shots:</span>
+                <span id="ammo-display">4 / 4</span>
+            </div>
+        </div>
+
+        <div class="hud-center">
+            <div class="progress-box">
+                <div class="progress-label" id="level-name">Level 1: The Royal Watchtower</div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-stats">
+                    <span>Destroyed: <strong id="percent-display">0%</strong></span>
+                    <span>Goal: <strong>70%</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="hud-right">
+            <button class="btn-royal" onclick="openShop()">
+                <span>🛒</span> Shop
+            </button>
+            <button class="btn-royal" onclick="openLevels()">
+                <span>🗺️</span> Levels
+            </button>
+            <button class="btn-royal btn-icon-only" id="mute-btn" onclick="toggleMute()">
+                🔊
+            </button>
+            <button class="btn-royal btn-icon-only" onclick="restartLevel()">
+                🔄
+            </button>
+        </div>
+    </div>
+
+    <!-- Bottom Tip & Active Cannon Info -->
+    <div class="aim-overlay">
+        🎯 <strong id="active-cannon-name">Royal Brass Cannon</strong> — Drag mouse/finger to Aim & Release to Fire!
+        <br><span id="level-tip" style="color: #ffd700; font-size: 12px;"></span>
+    </div>
+
+    <!-- WIN MODAL -->
+    <div id="win-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <h2 class="modal-title">🎉 LEVEL CLEARED! 🎉</h2>
+            <p class="modal-subtitle">Splendid destruction, Your Majesty!</p>
+            <div class="stars-container" id="win-stars">★★★</div>
+            <div style="font-size: 20px; font-weight: 800; color: #10b981; margin-bottom: 8px;" id="win-percent">88% Destroyed!</div>
+            <div style="font-size: 16px; color: #ffd700; font-weight: 700; margin-bottom: 24px;" id="win-reward">+150 Gold Coins</div>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button class="btn-royal" onclick="restartLevel()">🔄 Replay</button>
+                <button class="btn-royal" style="padding: 12px 28px; font-size: 16px;" onclick="nextLevel()">Next Level ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOSE MODAL -->
+    <div id="lose-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <h2 class="modal-title" style="color: #ef4444;">💥 OUT OF AMMO!</h2>
+            <p class="modal-subtitle">The fortress stood standing! Try finding the structural weak points.</p>
+            <div style="font-size: 20px; font-weight: 800; color: #f59e0b; margin: 16px 0 24px;" id="lose-percent">52% / 70% Needed</div>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button class="btn-royal" style="padding: 12px 28px; font-size: 16px;" onclick="restartLevel()">🔄 Try Again</button>
+                <button class="btn-royal" onclick="openShop()">🛒 Upgrade Cannon</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHOP MODAL -->
+    <div id="shop-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <button class="close-btn" onclick="closeShop()">✕</button>
+            <h2 class="modal-title">👑 ROYAL ARSENAL</h2>
+            <p class="modal-subtitle">Unlock powerful cannons and upgrades with your gold!</p>
+
+            <div class="shop-grid">
+                <!-- Standard Cannon -->
+                <div class="shop-item" id="item-standard">
+                    <div class="shop-item-info">
+                        <h4>Royal Brass Cannon</h4>
+                        <p>Balanced velocity & solid iron cannonballs.</p>
+                    </div>
+                    <button class="btn-royal btn-buy" onclick="equipCannon('standard')">Equipped</button>
+                </div>
+
+                <!-- Golden Dragon Cannon -->
+                <div class="shop-item" id="item-dragon">
+                    <div class="shop-item-info">
+                        <h4>Golden Dragon Cannon</h4>
+                        <p>Ultra-dense gold shot (+40% destruction impact!).</p>
+                    </div>
+                    <button class="btn-royal btn-buy" id="btn-buy-dragon" onclick="buyOrEquip('dragon', 250)">Buy (250 🪙)</button>
+                </div>
+
+                <!-- Inferno Cannon -->
+                <div class="shop-item" id="item-inferno">
+                    <div class="shop-item-info">
+                        <h4>Inferno Cannon</h4>
+                        <p>Fires explosive rounds! Detonates on impact.</p>
+                    </div>
+                    <button class="btn-royal btn-buy" id="btn-buy-inferno" onclick="buyOrEquip('inferno', 500)">Buy (500 🪙)</button>
+                </div>
+
+                <!-- Jester's Bouncy Cannon -->
+                <div class="shop-item" id="item-bouncy">
+                    <div class="shop-item-info">
+                        <h4>Jester's Bouncy Cannon</h4>
+                        <p>High-restitution rubber balls that ricochet!</p>
+                    </div>
+                    <button class="btn-royal btn-buy" id="btn-buy-bouncy" onclick="buyOrEquip('bouncy', 400)">Buy (400 🪙)</button>
+                </div>
+
+                <!-- Triple Cannon -->
+                <div class="shop-item" id="item-triple">
+                    <div class="shop-item-info">
+                        <h4>Triple Multi-Shot Cannon</h4>
+                        <p>Fires 3 cannonballs simultaneously!</p>
+                    </div>
+                    <button class="btn-royal btn-buy" id="btn-buy-triple" onclick="buyOrEquip('triple', 750)">Buy (750 🪙)</button>
+                </div>
+            </div>
+
+            <h3 style="color: #ffd700; margin: 20px 0 10px; text-align: left; font-size: 16px;">⚡ STAT UPGRADES</h3>
+            <div class="shop-grid">
+                <div class="shop-item">
+                    <div class="shop-item-info">
+                        <h4>Cannon Velocity <span id="power-lvl-label">(Lvl 1)</span></h4>
+                        <p>+12% projectile speed & kinetic impact.</p>
+                    </div>
+                    <button class="btn-royal btn-buy" onclick="upgradePower()">Upgrade (150 🪙)</button>
+                </div>
+                <div class="shop-item">
+                    <div class="shop-item-info">
+                        <h4>Extra Ammo Capacity <span id="ammo-lvl-label">(+0)</span></h4>
+                        <p>+1 additional starting cannonball every level.</p>
+                    </div>
+                    <button class="btn-royal btn-buy" onclick="upgradeAmmo()">Upgrade (200 🪙)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LEVEL SELECT MODAL -->
+    <div id="levels-modal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <button class="close-btn" onclick="closeLevels()">✕</button>
+            <h2 class="modal-title">🗺️ SELECT LEVEL</h2>
+            <p class="modal-subtitle">Choose any kingdom arena to challenge!</p>
+
+            <div class="level-grid">
+                <button class="level-btn" onclick="selectLevel(1)">1<br><small>Watchtower</small></button>
+                <button class="level-btn" onclick="selectLevel(2)">2<br><small>Castle Gate</small></button>
+                <button class="level-btn" onclick="selectLevel(3)">3<br><small>Pyramid</small></button>
+                <button class="level-btn" onclick="selectLevel(4)">4<br><small>Iron Bastion</small></button>
+                <button class="level-btn" onclick="selectLevel(5)">5<br><small>Citadel</small></button>
+                <button class="level-btn" onclick="selectLevel(6)">6<br><small>Palace</small></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="src/audio.js"></script>
+    <script src="src/physics.js"></script>
+    <script src="src/levels.js"></script>
+    <script src="src/cannon.js"></script>
+    <script src="src/game.js"></script>
+
+    <!-- UI Modal Helpers -->
+    <script>
+        function toggleMute() {
+            if (window.Sound) {
+                const isMuted = window.Sound.toggleMute();
+                document.getElementById('mute-btn').innerText = isMuted ? '🔇' : '🔊';
+            }
+        }
+
+        function restartLevel() {
+            if (window.Game) {
+                window.Game.loadLevel(window.Game.currentLevel);
+            }
+        }
+
+        function nextLevel() {
+            if (window.Game) {
+                let next = window.Game.currentLevel + 1;
+                if (next > window.Game.maxLevel) next = 1;
+                window.Game.loadLevel(next);
+            }
+        }
+
+        function openShop() {
+            renderShopUI();
+            document.getElementById('shop-modal').classList.remove('hidden');
+        }
+
+        function closeShop() {
+            document.getElementById('shop-modal').classList.add('hidden');
+        }
+
+        function openLevels() {
+            document.getElementById('levels-modal').classList.remove('hidden');
+        }
+
+        function closeLevels() {
+            document.getElementById('levels-modal').classList.add('hidden');
+        }
+
+        function selectLevel(idx) {
+            closeLevels();
+            if (window.Game) window.Game.loadLevel(idx);
+        }
+
+        function renderShopUI() {
+            const unlocked = window.Game.unlockedCannons;
+            const equipped = window.Game.equippedCannon;
+
+            ['standard', 'dragon', 'inferno', 'bouncy', 'triple'].forEach(id => {
+                const el = document.getElementById(`item-${id}`);
+                const btn = el.querySelector('button');
+
+                if (equipped === id) {
+                    el.classList.add('active');
+                    btn.innerText = 'Equipped';
+                    btn.disabled = true;
+                } else if (unlocked.includes(id)) {
+                    el.classList.remove('active');
+                    btn.innerText = 'Equip';
+                    btn.disabled = false;
+                    btn.onclick = () => equipCannon(id);
+                }
+            });
+
+            document.getElementById('power-lvl-label').innerText = `(Lvl ${window.Game.powerLevel})`;
+            document.getElementById('ammo-lvl-label').innerText = `(+${window.Game.ammoBonus})`;
+        }
+
+        function buyOrEquip(id, price) {
+            if (window.Game.unlockedCannons.includes(id)) {
+                equipCannon(id);
+                return;
+            }
+
+            if (window.Game.coins >= price) {
+                window.Game.coins -= price;
+                window.Game.unlockedCannons.push(id);
+                localStorage.setItem('royal_smash_coins', window.Game.coins.toString());
+                localStorage.setItem('royal_smash_unlocked', JSON.stringify(window.Game.unlockedCannons));
+                equipCannon(id);
+                if (window.Sound) window.Sound.playCoin();
+            } else {
+                alert("Not enough Gold Coins! Clear more levels or smash Golden Urns!");
+            }
+        }
+
+        function equipCannon(id) {
+            window.Game.equippedCannon = id;
+            localStorage.setItem('royal_smash_cannon', id);
+            window.Game.updateHUD();
+            renderShopUI();
+        }
+
+        function upgradePower() {
+            const cost = 150;
+            if (window.Game.coins >= cost) {
+                window.Game.coins -= cost;
+                window.Game.powerLevel++;
+                localStorage.setItem('royal_smash_coins', window.Game.coins.toString());
+                localStorage.setItem('royal_smash_power_lvl', window.Game.powerLevel.toString());
+                if (window.Sound) window.Sound.playCoin();
+                renderShopUI();
+                window.Game.updateHUD();
+            } else {
+                alert("Need 150 Gold Coins for this upgrade!");
+            }
+        }
+
+        function upgradeAmmo() {
+            const cost = 200;
+            if (window.Game.coins >= cost) {
+                window.Game.coins -= cost;
+                window.Game.ammoBonus++;
+                localStorage.setItem('royal_smash_coins', window.Game.coins.toString());
+                localStorage.setItem('royal_smash_ammo_lvl', window.Game.ammoBonus.toString());
+                if (window.Sound) window.Sound.playCoin();
+                renderShopUI();
+                window.Game.updateHUD();
+            } else {
+                alert("Need 200 Gold Coins for this upgrade!");
+            }
+        }
+    </script>
+</body>
+</html>
