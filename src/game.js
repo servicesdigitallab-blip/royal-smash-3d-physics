@@ -1,5 +1,4 @@
-// Royal Smash 3D - Main Game Engine (Exact Play Store Replica)
-// Faithfully implements camera framing, fairytale castle background, paint splatters, and turntable cannon
+// Royal Smash 3D - Main Game Engine (Crash-Proof & Exact Play Store Replica)
 
 class GameEngine {
     constructor() {
@@ -38,50 +37,53 @@ class GameEngine {
     }
 
     init() {
-        const container = document.getElementById('canvas-container');
+        try {
+            const container = document.getElementById('canvas-container');
 
-        // 1. Scene & Camera
-        this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x38bdf8); // Sky Cyan (screen_0.jpg)
-        this.scene.fog = new THREE.FogExp2(0x38bdf8, 0.007);
+            // 1. Scene & Camera
+            this.scene = new THREE.Scene();
+            this.scene.background = new THREE.Color(0x38bdf8); // Sky Cyan (screen_0.jpg)
+            this.scene.fog = new THREE.FogExp2(0x38bdf8, 0.007);
 
-        this.camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 150);
-        this.camera.position.copy(this.camBasePos);
-        this.camera.lookAt(0, 5.8, 0);
+            this.camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 150);
+            this.camera.position.copy(this.camBasePos);
+            this.camera.lookAt(0, 5.8, 0);
 
-        // 2. High-Performance WebGL Renderer
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        container.appendChild(this.renderer.domElement);
+            // 2. High-Performance WebGL Renderer
+            this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            this.renderer.shadowMap.enabled = true;
+            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            if (container) container.appendChild(this.renderer.domElement);
 
-        // 3. Bright Royal Lighting
-        this.setupLights();
+            // 3. Bright Royal Lighting
+            this.setupLights();
 
-        // 4. Fairytale Castle Background (screen_0.jpg)
-        this.setupEnvironment();
+            // 4. Fairytale Castle Background (screen_0.jpg)
+            this.setupEnvironment();
 
-        // 5. Play Store Turntable Cannon
-        this.cannon = new CannonController(this.scene);
+            // 5. Play Store Turntable Cannon
+            this.cannon = new CannonController(this.scene);
 
-        // 6. Smooth Aiming Controls
-        this.bindEvents();
+            // 6. Smooth Aiming Controls
+            this.bindEvents();
 
-        // 7. Load Level 1 (Can Pyramid)
-        this.loadLevel(this.currentLevel);
+            // 7. Load Level 1 (Can Pyramid)
+            this.loadLevel(this.currentLevel);
 
-        // 8. Animation Loop
-        this.lastTime = performance.now();
-        this.animate = this.animate.bind(this);
-        requestAnimationFrame(this.animate);
+            // 8. Animation Loop
+            this.lastTime = performance.now();
+            this.animate = this.animate.bind(this);
+            requestAnimationFrame(this.animate);
 
-        this.updateHUD();
+            this.updateHUD();
+        } catch (e) {
+            console.error("Game Initialization Error:", e);
+        }
     }
 
     setupLights() {
-        // Crisp Sun Light
         const sunLight = new THREE.DirectionalLight(0xfffaed, 1.6);
         sunLight.position.set(12, 32, 18);
         sunLight.castShadow = true;
@@ -96,7 +98,6 @@ class GameEngine {
         sunLight.shadow.bias = -0.0003;
         this.scene.add(sunLight);
 
-        // Ambient Fill
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x0284c7, 0.95);
         this.scene.add(hemiLight);
 
@@ -105,7 +106,6 @@ class GameEngine {
     }
 
     setupEnvironment() {
-        // Bright Green Rolling Lawn
         const groundGeo = new THREE.PlaneGeometry(140, 140);
         const groundMat = new THREE.MeshPhongMaterial({ color: 0x4ade80, specular: 0x86efac, shininess: 20 });
         const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -114,7 +114,6 @@ class GameEngine {
         ground.receiveShadow = true;
         this.scene.add(ground);
 
-        // Dirt Circular Mound under the pedestal (screen_0.jpg)
         const dirtGeo = new THREE.CircleGeometry(3.2, 32);
         const dirtMat = new THREE.MeshPhongMaterial({ color: 0xca8a04, roughness: 0.9 });
         const dirt = new THREE.Mesh(dirtGeo, dirtMat);
@@ -123,7 +122,6 @@ class GameEngine {
         dirt.receiveShadow = true;
         this.scene.add(dirt);
 
-        // Winding Pathway towards castle
         const pathGeo = new THREE.PlaneGeometry(3.6, 26);
         const pathMat = new THREE.MeshPhongMaterial({ color: 0xfef08a, roughness: 0.9 });
         const path = new THREE.Mesh(pathGeo, pathMat);
@@ -131,7 +129,6 @@ class GameEngine {
         path.position.set(0, 0.03, -15);
         this.scene.add(path);
 
-        // Fairytale Disney Castle in Background (screen_0.jpg)
         this.buildFairytaleCastle();
     }
 
@@ -143,28 +140,23 @@ class GameEngine {
         const purpleRoofMat = new THREE.MeshPhongMaterial({ color: 0x8b2fc9, specular: 0xd8b4fe, shininess: 80 });
         const goldMat = new THREE.MeshPhongMaterial({ color: 0xfacc15, specular: 0xfef08a, shininess: 120 });
 
-        // Main Center Keep
         const mainKeep = new THREE.Mesh(new THREE.BoxGeometry(8, 9, 5), stoneMat);
         mainKeep.position.y = 4.5;
         mainKeep.castShadow = true;
         castleGroup.add(mainKeep);
 
-        // Center High Spire Tower
         const centerTower = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.8, 11, 20), stoneMat);
         centerTower.position.set(0, 5.5, 0);
         castleGroup.add(centerTower);
 
-        // Center Purple Roof Cone
         const centerRoof = new THREE.Mesh(new THREE.ConeGeometry(2.2, 5, 20), purpleRoofMat);
         centerRoof.position.set(0, 13.5, 0);
         castleGroup.add(centerRoof);
 
-        // Gold Spire Ball on top
         const goldSpire = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 12), goldMat);
         goldSpire.position.set(0, 16.2, 0);
         castleGroup.add(goldSpire);
 
-        // Left & Right Spires
         [-5.5, 5.5].forEach(x => {
             const tower = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 8, 16), stoneMat);
             tower.position.set(x, 4.0, 0);
@@ -179,7 +171,6 @@ class GameEngine {
             castleGroup.add(ball);
         });
 
-        // Cartoon Rounded Trees on Hills (screen_0.jpg)
         [-15, -10, 10, 16].forEach((tx, i) => {
             const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 3.5, 12), new THREE.MeshPhongMaterial({ color: 0x78350f }));
             trunk.position.set(tx, 1.75, -20 + i * 2);
@@ -202,10 +193,9 @@ class GameEngine {
 
         const canvas = this.renderer.domElement;
 
-        // Smooth Continuous Aiming directly toward cursor/touch
         const updateAimFromPoint = (clientX, clientY) => {
-            const nx = (clientX / window.innerWidth - 0.5) * 2; // -1 to 1
-            const ny = 1.0 - (clientY / window.innerHeight);     // 0 (bottom) to 1 (top)
+            const nx = (clientX / window.innerWidth - 0.5) * 2;
+            const ny = 1.0 - (clientY / window.innerHeight);
 
             const yaw = -nx * 0.45;
             const pitch = 0.08 + ny * 0.55;
@@ -230,7 +220,6 @@ class GameEngine {
             }
         });
 
-        // Touch controls
         canvas.addEventListener('touchstart', (e) => {
             if (e.touches.length > 0) {
                 if (window.Sound) window.Sound.resume();
@@ -277,8 +266,10 @@ class GameEngine {
         this.levelCompleted = false;
         this.levelFailed = false;
 
-        document.getElementById('win-modal').classList.add('hidden');
-        document.getElementById('lose-modal').classList.add('hidden');
+        const winM = document.getElementById('win-modal');
+        if (winM) winM.classList.add('hidden');
+        const loseM = document.getElementById('lose-modal');
+        if (loseM) loseM.classList.add('hidden');
 
         const cfg = window.Levels.loadLevel(lvl, this.scene);
         this.totalAmmo = cfg.ammo + this.ammoBonus;
@@ -286,8 +277,11 @@ class GameEngine {
         this.totalDestructibles = window.Physics.destructibleBodies.length;
         this.destroyedCount = 0;
 
-        document.getElementById('level-name').innerText = `Level ${lvl}: ${cfg.name}`;
-        document.getElementById('level-tip').innerText = cfg.tip || "";
+        const lvlNameEl = document.getElementById('level-name');
+        if (lvlNameEl) lvlNameEl.innerText = `Level ${lvl}: ${cfg.name}`;
+
+        const lvlTipEl = document.getElementById('level-tip');
+        if (lvlTipEl) lvlTipEl.innerText = cfg.tip || "";
 
         this.updateHUD();
     }
@@ -328,10 +322,17 @@ class GameEngine {
         this.addCoins(bonusCoins, new THREE.Vector3(0, 5, 0));
 
         const starStr = '★'.repeat(stars) + '☆'.repeat(3 - stars);
-        document.getElementById('win-stars').innerText = starStr;
-        document.getElementById('win-percent').innerText = `${percent}% Cleared!`;
-        document.getElementById('win-reward').innerText = `+${bonusCoins} Gold Coins`;
-        document.getElementById('win-modal').classList.remove('hidden');
+        const winStarsEl = document.getElementById('win-stars');
+        if (winStarsEl) winStarsEl.innerText = starStr;
+
+        const winPctEl = document.getElementById('win-percent');
+        if (winPctEl) winPctEl.innerText = `${percent}% Cleared!`;
+
+        const winRwdEl = document.getElementById('win-reward');
+        if (winRwdEl) winRwdEl.innerText = `+${bonusCoins} Gold Coins`;
+
+        const winModal = document.getElementById('win-modal');
+        if (winModal) winModal.classList.remove('hidden');
 
         this.spawnConfetti();
     }
@@ -342,8 +343,11 @@ class GameEngine {
 
         if (window.Sound) window.Sound.playDefeat();
 
-        document.getElementById('lose-percent').innerText = `${percent}% / 70% Needed`;
-        document.getElementById('lose-modal').classList.remove('hidden');
+        const losePctEl = document.getElementById('lose-percent');
+        if (losePctEl) losePctEl.innerText = `${percent}% / 70% Needed`;
+
+        const loseModal = document.getElementById('lose-modal');
+        if (loseModal) loseModal.classList.remove('hidden');
     }
 
     addCoins(amt, worldPos) {
@@ -370,17 +374,22 @@ class GameEngine {
     }
 
     updateHUD() {
-        document.getElementById('coin-display').innerText = this.coins.toLocaleString();
-        document.getElementById('ammo-display').innerText = `${this.ammo} / ${this.totalAmmo}`;
+        const coinEl = document.getElementById('coin-display');
+        if (coinEl) coinEl.innerText = this.coins.toLocaleString();
+
+        const ammoEl = document.getElementById('ammo-display');
+        if (ammoEl) ammoEl.innerText = `${this.ammo} / ${this.totalAmmo}`;
 
         const percent = this.totalDestructibles > 0 
             ? Math.min(Math.round((this.destroyedCount / this.totalDestructibles) * 100), 100) 
             : 0;
-        document.getElementById('percent-display').innerText = `${percent}%`;
-        document.getElementById('progress-fill').style.width = `${percent}%`;
+        const pctEl = document.getElementById('percent-display');
+        if (pctEl) pctEl.innerText = `${percent}%`;
+
+        const progEl = document.getElementById('progress-fill');
+        if (progEl) progEl.style.width = `${percent}%`;
     }
 
-    // Fiery Jet Trail behind Ball (screen_1.jpg)
     spawnBallTrail(pos) {
         for (let i = 0; i < 2; i++) {
             const geo = new THREE.SphereGeometry(0.22, 8, 8);
@@ -403,7 +412,6 @@ class GameEngine {
         }
     }
 
-    // Juicy Colorful Paint/Liquid Splatter (screen_1.jpg!)
     spawnColorSplatter(pos, color = 'red') {
         const colorMap = {
             red: 0xdc2626,
@@ -568,14 +576,12 @@ class GameEngine {
         this.renderer.render(this.scene, this.camera);
     }
 
-    // Track targets knocked off the purple shelf (shelf is at y = 3.95)
     trackDestructions() {
         let destroyed = 0;
         for (let item of window.Physics.destructibleBodies) {
             if (!item.destroyed) {
                 const pos = item.body.position;
 
-                // Knocked off condition: fallen below shelf (y < 3.7) or blown off horizontally
                 if (pos.y < 3.7 || Math.abs(pos.x) > 4.6 || Math.abs(pos.z) > 2.2) {
                     item.destroyed = true;
                     this.score += item.points;
