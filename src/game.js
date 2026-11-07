@@ -1,5 +1,5 @@
-// Royal Smash 3D - Main Game Engine
-// Manages Three.js rendering loop, state, economy, particles, UI, and level lifecycle
+// Royal Smash 3D - Main Game Engine (Polished Edition)
+// Handles Three.js rendering, screen shake, ball trails, particles, audio, and UI state
 
 class GameEngine {
     constructor() {
@@ -7,6 +7,10 @@ class GameEngine {
         this.camera = null;
         this.renderer = null;
         this.cannon = null;
+
+        // Camera default position for screenshake recovery
+        this.camBasePos = new THREE.Vector3(0, 5.5, 18.5);
+        this.shakeIntensity = 0;
 
         // Economy & Inventory
         this.coins = parseInt(localStorage.getItem('royal_smash_coins') || '150', 10);
@@ -27,14 +31,12 @@ class GameEngine {
         this.levelFailed = false;
         this.isFiringBlocked = false;
 
-        // Particle System
+        // Visual FX
         this.particles = [];
 
-        // Interaction State
+        // Interaction
         this.isAiming = false;
         this.pointerStart = { x: 0, y: 0 };
-        this.currentPitch = 0.22;
-        this.currentYaw = 0.0;
 
         this.init();
     }
@@ -44,11 +46,11 @@ class GameEngine {
 
         // 1. Scene & Camera
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x87ceeb); // Sky blue
-        this.scene.fog = new THREE.FogExp2(0x87ceeb, 0.015);
+        this.scene.background = new THREE.Color(0x7dd3fc); // Bright cheerful casual blue
+        this.scene.fog = new THREE.FogExp2(0x7dd3fc, 0.012);
 
         this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 150);
-        this.camera.position.set(0, 5.5, 18.5);
+        this.camera.position.copy(this.camBasePos);
         this.camera.lookAt(0, 2.5, 0);
 
         // 2. Renderer
@@ -59,22 +61,20 @@ class GameEngine {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(this.renderer.domElement);
 
-        // 3. Lighting
+        // 3. Lighting & Atmosphere
         this.setupLights();
-
-        // 4. Surroundings (Castle Walls & Mountains)
         this.setupEnvironment();
 
-        // 5. Cannon Controller
+        // 4. Cannon Controller
         this.cannon = new CannonController(this.scene);
 
-        // 6. Bind Events
+        // 5. Controls
         this.bindEvents();
 
-        // 7. Start Level 1
+        // 6. Start Level
         this.loadLevel(this.currentLevel);
 
-        // 8. Render Loop
+        // 7. Loop
         this.lastTime = performance.now();
         this.animate = this.animate.bind(this);
         requestAnimationFrame(this.animate);
@@ -83,52 +83,64 @@ class GameEngine {
     }
 
     setupLights() {
-        // Sunlight with soft shadows
-        const sunLight = new THREE.DirectionalLight(0xfffaed, 1.4);
-        sunLight.position.set(12, 22, 14);
+        const sunLight = new THREE.DirectionalLight(0xfffaed, 1.5);
+        sunLight.position.set(14, 25, 16);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 2048;
         sunLight.shadow.mapSize.height = 2048;
         sunLight.shadow.camera.near = 1;
-        sunLight.shadow.camera.far = 60;
-        sunLight.shadow.camera.left = -14;
-        sunLight.shadow.camera.right = 14;
-        sunLight.shadow.camera.top = 16;
-        sunLight.shadow.camera.bottom = -8;
-        sunLight.shadow.bias = -0.0005;
+        sunLight.shadow.camera.far = 65;
+        sunLight.shadow.camera.left = -15;
+        sunLight.shadow.camera.right = 15;
+        sunLight.shadow.camera.top = 18;
+        sunLight.shadow.camera.bottom = -10;
+        sunLight.shadow.bias = -0.0004;
         this.scene.add(sunLight);
 
-        // Sky / Ground Ambient Fill
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x445544, 0.65);
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x38bdf8, 0.7);
         this.scene.add(hemiLight);
     }
 
     setupEnvironment() {
-        // Distant Hills / Royal Courtyard Ground
+        // Courtyard Green Grass Lawn
         const groundGeo = new THREE.PlaneGeometry(120, 120);
-        const groundMat = new THREE.MeshStandardMaterial({ color: 0x567d46, roughness: 0.95 });
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.9 });
         const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
         ground.position.y = -0.55;
         ground.receiveShadow = true;
         this.scene.add(ground);
 
-        // Castle Wall in Background
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x7a838f, roughness: 0.9 });
-        const wallGeo = new THREE.BoxGeometry(40, 8, 2.5);
-        const wall = new THREE.Mesh(wallGeo, wallMat);
-        wall.position.set(0, 3.5, -14);
+        // Castle Wall
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.85 });
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(44, 9, 3), wallMat);
+        wall.position.set(0, 4.0, -15);
         wall.receiveShadow = true;
         wall.castShadow = true;
         this.scene.add(wall);
 
-        // Castle Battlements (Crenels)
-        for (let i = -18; i <= 18; i += 3) {
-            const crenel = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 2.7), wallMat);
-            crenel.position.set(i, 8.2, -14);
+        // Castle Battlements
+        for (let i = -20; i <= 20; i += 3.2) {
+            const crenel = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 3.2), wallMat);
+            crenel.position.set(i, 9.2, -15);
             crenel.castShadow = true;
             this.scene.add(crenel);
         }
+
+        // Royal Flags on Wall
+        const flagColors = [0xef4444, 0x3b82f6, 0xfbbf24];
+        [-14, -6, 2, 10, 18].forEach((fx, idx) => {
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 4, 8), new THREE.MeshStandardMaterial({ color: 0x475569 }));
+            pole.position.set(fx, 11, -15);
+            this.scene.add(pole);
+
+            const banner = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.9), new THREE.MeshBasicMaterial({
+                color: flagColors[idx % flagColors.length],
+                side: THREE.DoubleSide
+            }));
+            banner.position.set(fx + 0.7, 12.2, -15);
+            this.scene.add(banner);
+        });
     }
 
     bindEvents() {
@@ -140,7 +152,6 @@ class GameEngine {
 
         const canvas = this.renderer.domElement;
 
-        // Pointer Aiming Controls
         const onDown = (clientX, clientY) => {
             if (this.levelCompleted || this.levelFailed || this.ammo <= 0) return;
             this.isAiming = true;
@@ -152,11 +163,7 @@ class GameEngine {
             if (!this.isAiming) return;
             const dx = (clientX - this.pointerStart.x) / window.innerWidth;
             const dy = (clientY - this.pointerStart.y) / window.innerHeight;
-
-            // Map mouse drag to yaw and pitch
-            const targetYaw = -dx * 1.5;
-            const targetPitch = 0.22 - dy * 0.9;
-            this.cannon.setAim(targetPitch, targetYaw);
+            this.cannon.setAim(0.22 - dy * 0.9, -dx * 1.5);
         };
 
         const onUp = () => {
@@ -170,7 +177,6 @@ class GameEngine {
         window.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
         window.addEventListener('mouseup', onUp);
 
-        // Touch support
         canvas.addEventListener('touchstart', (e) => {
             if (e.touches.length > 0) onDown(e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: true });
@@ -189,16 +195,14 @@ class GameEngine {
         const powerMult = 1.0 + (this.powerLevel - 1) * 0.12;
         this.cannon.fire(this.equippedCannon, powerMult);
 
-        // Briefly throttle rapid spam
         this.isFiringBlocked = true;
-        setTimeout(() => {
-            this.isFiringBlocked = false;
-        }, 350);
+        setTimeout(() => { this.isFiringBlocked = false; }, 350);
 
-        // Check level outcome after delay
-        setTimeout(() => {
-            this.checkLevelOutcome();
-        }, 2200);
+        setTimeout(() => { this.checkLevelOutcome(); }, 2400);
+    }
+
+    triggerScreenShake(intensity = 0.3) {
+        this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
     }
 
     loadLevel(lvl) {
@@ -206,11 +210,9 @@ class GameEngine {
         this.levelCompleted = false;
         this.levelFailed = false;
 
-        // Hide modals
         document.getElementById('win-modal').classList.add('hidden');
         document.getElementById('lose-modal').classList.add('hidden');
 
-        // Build Level with bonus ammo from upgrades
         const cfg = window.Levels.loadLevel(lvl, this.scene);
         this.totalAmmo = cfg.ammo + this.ammoBonus;
         this.ammo = this.totalAmmo;
@@ -228,13 +230,11 @@ class GameEngine {
 
         const percent = Math.min(Math.round((this.destroyedCount / this.totalDestructibles) * 100), 100);
 
-        // Win condition: >= 70% destruction
         if (percent >= 70) {
             this.triggerLevelWin(percent);
             return;
         }
 
-        // Fail condition: out of ammo and under 70% after bodies settle
         if (this.ammo <= 0) {
             setTimeout(() => {
                 const finalPercent = Math.min(Math.round((this.destroyedCount / this.totalDestructibles) * 100), 100);
@@ -253,7 +253,6 @@ class GameEngine {
 
         if (window.Sound) window.Sound.playVictory();
 
-        // Calculate stars
         let stars = 1;
         if (this.ammo >= 2) stars = 3;
         else if (this.ammo >= 1) stars = 2;
@@ -261,7 +260,6 @@ class GameEngine {
         const bonusCoins = 100 + (stars * 25);
         this.addCoins(bonusCoins, new THREE.Vector3(0, 3, 0));
 
-        // Show win modal
         const starStr = '★'.repeat(stars) + '☆'.repeat(3 - stars);
         document.getElementById('win-stars').innerText = starStr;
         document.getElementById('win-percent').innerText = `${percent}% Destroyed!`;
@@ -285,9 +283,7 @@ class GameEngine {
         this.coins += amt;
         localStorage.setItem('royal_smash_coins', this.coins.toString());
         this.updateHUD();
-
-        // Floating Coin notification
-        this.showFloatingText(`+${amt} Coins!`, worldPos);
+        this.showFloatingText(`+${amt} 🪙`, worldPos);
     }
 
     showFloatingText(text, worldPos) {
@@ -295,7 +291,6 @@ class GameEngine {
         floatEl.className = 'floating-coin';
         floatEl.innerText = text;
 
-        // Convert 3D position to Screen Coordinates
         const p = worldPos.clone().project(this.camera);
         const x = (p.x * 0.5 + 0.5) * window.innerWidth;
         const y = (-(p.y * 0.5) + 0.5) * window.innerHeight;
@@ -317,9 +312,8 @@ class GameEngine {
         document.getElementById('percent-display').innerText = `${percent}%`;
         document.getElementById('progress-fill').style.width = `${percent}%`;
 
-        // Equipped cannon label
         const names = {
-            standard: "Royal Brass Cannon",
+            standard: "Royal Star Cannon",
             dragon: "Golden Dragon Cannon",
             inferno: "Inferno Cannon",
             bouncy: "Jester's Bouncy Cannon",
@@ -328,41 +322,70 @@ class GameEngine {
         document.getElementById('active-cannon-name').innerText = names[this.equippedCannon] || "Cannon";
     }
 
-    // Particle Burst Effects
-    spawnSmokeBurst(pos) {
-        for (let i = 0; i < 8; i++) {
-            const geo = new THREE.SphereGeometry(0.25 + Math.random() * 0.2, 8, 8);
-            const mat = new THREE.MeshBasicMaterial({ color: 0xdddddd, transparent: true, opacity: 0.8 });
+    // Ball Flight Particle Trail ("Goala Trail Animation")
+    spawnBallTrail(pos, cannonType) {
+        // Star sparkle
+        const colors = (cannonType === 'dragon') ? [0xffd700, 0xffea00] :
+                       (cannonType === 'inferno') ? [0xff3300, 0xff9900] :
+                       (cannonType === 'bouncy')  ? [0x00f0ff, 0x00a8ff] :
+                       [0xffd700, 0x38bdf8, 0xffffff];
+
+        const col = colors[Math.floor(Math.random() * colors.length)];
+        const geo = new THREE.PlaneGeometry(0.2, 0.2);
+        const mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
+        const p = new THREE.Mesh(geo, mat);
+        p.position.copy(pos);
+        p.rotation.z = Math.random() * Math.PI;
+        this.scene.add(p);
+
+        this.particles.push({
+            mesh: p,
+            vel: new THREE.Vector3((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4),
+            life: 0.35,
+            maxLife: 0.35,
+            isSparkle: true
+        });
+    }
+
+    spawnMuzzleBlast(pos) {
+        // Shockwave expansion ring
+        const ringGeo = new THREE.RingGeometry(0.3, 0.6, 24);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xffea00, transparent: true, opacity: 0.95, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.position.copy(pos);
+        ring.lookAt(this.camera.position);
+        this.scene.add(ring);
+        this.particles.push({ mesh: ring, vel: new THREE.Vector3(0,0,0), life: 0.22, maxLife: 0.22, isRing: true });
+
+        // Smoke Puffs
+        for (let i = 0; i < 10; i++) {
+            const geo = new THREE.SphereGeometry(0.3 + Math.random() * 0.2, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
             const p = new THREE.Mesh(geo, mat);
             p.position.copy(pos);
             this.scene.add(p);
 
-            const vel = new THREE.Vector3(
-                (Math.random() - 0.5) * 2,
-                Math.random() * 2 + 1,
-                (Math.random() - 0.5) * 2 - 2
-            );
-
-            this.particles.push({ mesh: p, vel, life: 0.45, maxLife: 0.45 });
+            const vel = new THREE.Vector3((Math.random() - 0.5) * 3, Math.random() * 2 + 1, (Math.random() - 0.5) * 3 - 2);
+            this.particles.push({ mesh: p, vel, life: 0.5, maxLife: 0.5 });
         }
     }
 
     spawnExplosionFX(pos) {
-        // Fire sphere
-        const flashGeo = new THREE.SphereGeometry(2.5, 12, 12);
-        const flashMat = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.9 });
-        const flash = new THREE.Mesh(flashGeo, flashMat);
+        this.triggerScreenShake(0.65);
+
+        const flash = new THREE.Mesh(
+            new THREE.SphereGeometry(3.2, 12, 12),
+            new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.95 })
+        );
         flash.position.copy(pos);
         this.scene.add(flash);
-        this.particles.push({ mesh: flash, vel: new THREE.Vector3(0, 0, 0), life: 0.2, maxLife: 0.2, isFlash: true });
+        this.particles.push({ mesh: flash, vel: new THREE.Vector3(0,0,0), life: 0.22, maxLife: 0.22, isFlash: true });
 
-        // Smoke and spark particles
-        for (let i = 0; i < 20; i++) {
-            const size = 0.35 + Math.random() * 0.4;
-            const isSpark = Math.random() > 0.4;
-            const geo = new THREE.SphereGeometry(size, 8, 8);
+        for (let i = 0; i < 28; i++) {
+            const geo = new THREE.SphereGeometry(0.35 + Math.random() * 0.3, 8, 8);
+            const isSpark = Math.random() > 0.35;
             const mat = new THREE.MeshBasicMaterial({
-                color: isSpark ? 0xffcc00 : 0x444444,
+                color: isSpark ? 0xfacc15 : 0xdc2626,
                 transparent: true,
                 opacity: 0.85
             });
@@ -370,30 +393,38 @@ class GameEngine {
             p.position.copy(pos);
             this.scene.add(p);
 
-            const vel = new THREE.Vector3(
-                (Math.random() - 0.5) * 8,
-                Math.random() * 7 + 2,
-                (Math.random() - 0.5) * 8
-            );
+            const vel = new THREE.Vector3((Math.random() - 0.5) * 10, Math.random() * 8 + 3, (Math.random() - 0.5) * 10);
+            this.particles.push({ mesh: p, vel, life: 0.75, maxLife: 0.75 });
+        }
+    }
 
-            this.particles.push({ mesh: p, vel, life: 0.7, maxLife: 0.7 });
+    spawnGoldSparkles(pos) {
+        for (let i = 0; i < 16; i++) {
+            const geo = new THREE.PlaneGeometry(0.25, 0.25);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffd700, side: THREE.DoubleSide, transparent: true });
+            const p = new THREE.Mesh(geo, mat);
+            p.position.copy(pos);
+            this.scene.add(p);
+
+            const vel = new THREE.Vector3((Math.random() - 0.5) * 5, Math.random() * 4 + 2, (Math.random() - 0.5) * 5);
+            this.particles.push({ mesh: p, vel, life: 0.8, maxLife: 0.8, isConfetti: true });
         }
     }
 
     spawnConfetti() {
-        const colors = [0xff0055, 0x00ffcc, 0xffd700, 0x7700ff, 0xff8800];
-        for (let i = 0; i < 70; i++) {
-            const geo = new THREE.PlaneGeometry(0.35, 0.2);
+        const colors = [0xef4444, 0x3b82f6, 0xfbbf24, 0x10b981, 0x8b5cf6, 0xff007f];
+        for (let i = 0; i < 90; i++) {
+            const geo = new THREE.PlaneGeometry(0.35, 0.22);
             const mat = new THREE.MeshBasicMaterial({
                 color: colors[Math.floor(Math.random() * colors.length)],
                 side: THREE.DoubleSide
             });
             const p = new THREE.Mesh(geo, mat);
-            p.position.set((Math.random() - 0.5) * 12, 8 + Math.random() * 4, 3 + (Math.random() - 0.5) * 6);
+            p.position.set((Math.random() - 0.5) * 14, 9 + Math.random() * 4, 3 + (Math.random() - 0.5) * 6);
             this.scene.add(p);
 
-            const vel = new THREE.Vector3((Math.random() - 0.5) * 3, -Math.random() * 3 - 1, (Math.random() - 0.5) * 3);
-            this.particles.push({ mesh: p, vel, life: 2.2, maxLife: 2.2, isConfetti: true });
+            const vel = new THREE.Vector3((Math.random() - 0.5) * 3, -Math.random() * 3 - 1.5, (Math.random() - 0.5) * 3);
+            this.particles.push({ mesh: p, vel, life: 2.5, maxLife: 2.5, isConfetti: true });
         }
     }
 
@@ -402,14 +433,33 @@ class GameEngine {
         const dt = Math.min((now - this.lastTime) / 1000, 0.05);
         this.lastTime = now;
 
-        // Step Physics Simulation
+        // Step Physics
         window.Physics.step(dt);
 
-        // Update Cannon recoil and trajectory
+        // Update Cannon & Recoil
         this.cannon.update(dt);
 
-        // Track Destructible Collapses
+        // Update Active Balls (Trails & 3D Spin Animation)
+        for (let ball of window.Physics.activeBalls) {
+            ball.trailTimer = (ball.trailTimer || 0) + dt;
+            if (ball.trailTimer > 0.025) {
+                ball.trailTimer = 0;
+                this.spawnBallTrail(ball.body.position, ball.type);
+            }
+        }
+
+        // Track Destructions
         this.trackDestructions();
+
+        // Screen Shake calculation
+        if (this.shakeIntensity > 0) {
+            this.shakeIntensity -= dt * 1.5;
+            if (this.shakeIntensity < 0) this.shakeIntensity = 0;
+            this.camera.position.x = this.camBasePos.x + (Math.random() - 0.5) * this.shakeIntensity;
+            this.camera.position.y = this.camBasePos.y + (Math.random() - 0.5) * this.shakeIntensity;
+        } else {
+            this.camera.position.copy(this.camBasePos);
+        }
 
         // Update Particles
         for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -420,12 +470,16 @@ class GameEngine {
                 this.particles.splice(i, 1);
             } else {
                 p.mesh.position.addScaledVector(p.vel, dt);
-                if (p.isFlash) {
+                if (p.isRing) {
+                    p.mesh.scale.multiplyScalar(1.25);
+                    p.mesh.material.opacity = p.life / p.maxLife;
+                } else if (p.isFlash) {
                     p.mesh.scale.multiplyScalar(1.08);
                     p.mesh.material.opacity = p.life / p.maxLife;
-                } else if (p.isConfetti) {
-                    p.mesh.rotation.x += dt * 5;
-                    p.mesh.rotation.y += dt * 4;
+                } else if (p.isConfetti || p.isSparkle) {
+                    p.mesh.rotation.x += dt * 6;
+                    p.mesh.rotation.y += dt * 5;
+                    p.mesh.material.opacity = p.life / p.maxLife;
                 } else {
                     p.mesh.material.opacity = p.life / p.maxLife;
                 }
@@ -442,8 +496,7 @@ class GameEngine {
                 const dy = Math.abs(item.body.position.y - item.originalY);
                 const pos = item.body.position;
 
-                // Condition for destruction: fallen, tipped over, or blown off pedestal
-                if (pos.y < 0.3 || dy > 1.2 || Math.abs(pos.x) > 7.5 || Math.abs(pos.z) > 7.5) {
+                if (pos.y < 0.35 || dy > 1.1 || Math.abs(pos.x) > 7.5 || Math.abs(pos.z) > 7.5) {
                     item.destroyed = true;
                     this.score += item.points;
                     this.addCoins(item.points, pos);
@@ -460,7 +513,6 @@ class GameEngine {
     }
 }
 
-// Global initialization
 window.addEventListener('DOMContentLoaded', () => {
     window.Game = new GameEngine();
 });
